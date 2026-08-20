@@ -1,36 +1,44 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# MathLab Avatar Teacher — Study With Avatar
 
-## Getting Started
+Photo-to-Talking Avatar Micro-Lessons with Live Interactive Whiteboard built with Next.js 16, React 19, KaTeX, and face-api.js.
 
-First, run the development server:
+## 🚀 Features
 
+- **Avatar Teacher Engine**:
+  - ⚡ **Free Living Photo Mode**: Runs 100% in browser using MediaPipe / `face-api.js` facial landmarks for live mouth-warping lip sync & blinking.
+  - 🎬 **Paid D-ID Talk API**: Realistic photo-to-video avatar generation.
+  - 🎨 **SVG Rigged Body**: Stylized SVG torso with responsive arm gestures (`point_left`, `point_right`, `open_palms`).
+- **Interactive Whiteboard**:
+  - Live KaTeX math expression rendering.
+  - Step highlighting & circled answer badges.
+  - HTML5 Canvas mathematical function plotter (polynomials, sine/cosine, etc.).
+- **Lesson Script Generator**:
+  - Anthropic Claude API integration for generating structured CBSE math lessons.
+  - Built-in offline fallback mock generator for instant zero-config testing.
+- **Web Speech API**: Browser-native text-to-speech with word-boundary event tracking.
+
+---
+
+## 🛠️ Quick Start (Run Locally)
+
+### 1. Install Dependencies
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Download Face-API Models
+Model weight files (`tiny_face_detector` and `face_landmark_68`) are located in `public/models/`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 3. Environment Variables (Optional)
+Create `.env.local` for server-side API keys:
+```env
+ANTHROPIC_API_KEY=...    # Optional: for Claude lesson generation
+DID_API_KEY=...          # Optional: for D-ID realistic video avatar
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### 4. Run Development Server
+```bash
+npm run dev
+```
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
