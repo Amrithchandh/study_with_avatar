@@ -6,15 +6,35 @@ import path from "path";
 
 export async function POST(req: NextRequest) {
   try {
-    const formData = await req.formData();
-    const file = formData.get("file") as File | null;
+    let buffer: Buffer;
+    let filename = `avatar_${Date.now()}.jpg`;
+    let mimeType = "image/jpeg";
 
-    if (!file) {
-      return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
+    const contentType = req.headers.get("content-type") || "";
+
+    if (contentType.includes("multipart/form-data")) {
+      const formData = await req.formData();
+      const file = formData.get("file") as File | null;
+      if (!file) {
+        return NextResponse.json({ error: "No file uploaded" }, { status: 400 });
+      }
+      const bytes = await file.arrayBuffer();
+      buffer = Buffer.from(bytes);
+      filename = file.name || filename;
+      mimeType = file.type || mimeType;
+    } else {
+      const { imageBase64, imageUrl } = await req.json();
+      if (imageUrl) {
+        const fetchRes = await fetch(imageUrl);
+        const arrayBuf = await fetchRes.arrayBuffer();
+        buffer = Buffer.from(arrayBuf);
+      } else if (imageBase64) {
+        const base64Data = imageBase64.replace(/^data:image\/\w+;base64,/, "");
+        buffer = Buffer.from(base64Data, "base64");
+      } else {
+        return NextResponse.json({ error: "No image provided" }, { status: 400 });
+      }
     }
-
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
 
     // 1. Save locally in public/uploads for local preview / fallback
     const uploadsDir = path.join(process.cwd(), "public", "uploads");
@@ -22,29 +42,29 @@ export async function POST(req: NextRequest) {
       fs.mkdirSync(uploadsDir, { recursive: true });
     }
 
-    const ext = path.extname(file.name) || ".jpg";
-    const filename = `avatar_${Date.now()}_${Math.random().toString(36).substring(2, 8)}${ext}`;
-    const localFilePath = path.join(uploadsDir, filename);
+    const safeFilename = `avatar_${Date.now()}_${Math.random().toString(36).substring(2, 8)}.jpg`;
+    const localFilePath = path.join(uploadsDir, safeFilename);
     fs.writeFileSync(localFilePath, buffer);
+    const localUrl = `/uploads/${safeFilename}`;
 
-    const localUrl = `/uploads/${filename}`;
+    // 2. Upload photo directly to D-ID API's S3 storage (/images)
+    let dIdS3Url = "";
+    const apiKey = process.env.DID_API_KEY;
 
-    // 2. Upload to free public image host (tmpfiles.org) so D-ID API can access it over HTTP/HTTPS
-    let publicUrl = "";
-    try {
-      const publicHostRes = await uploadToPublicHost(buffer, filename, file.type || "image/jpeg");
-      if (publicHostRes) {
-        publicUrl = publicHostRes;
+    if (apiKey && apiKey !== "paste_your_key_here") {
+      try {
+        dIdS3Url = await uploadToDidApi(buffer, safeFilename, apiKey);
+        console.log("Successfully uploaded photo to D-ID S3:", dIdS3Url);
+      } catch (err: any) {
+        console.warn("Failed to upload image to D-ID S3:", err.message);
       }
-    } catch (err) {
-      console.warn("Public image host upload failed, relying on local URL:", err);
     }
 
     return NextResponse.json({
       success: true,
       localUrl,
-      publicUrl: publicUrl || localUrl,
-      filename,
+      publicUrl: dIdS3Url || localUrl,
+      dIdS3Url,
     });
   } catch (err: any) {
     console.error("Upload photo error:", err);
@@ -52,28 +72,32 @@ export async function POST(req: NextRequest) {
   }
 }
 
-async function uploadToPublicHost(buffer: Buffer, filename: string, mimeType: string): Promise<string | null> {
+async function uploadToDidApi(buffer: Buffer, filename: string, apiKey: string): Promise<string> {
   const boundary = "----WebKitFormBoundary" + Math.random().toString(36).substring(2);
-  const head = `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${filename}"\r\nContent-Type: ${mimeType}\r\n\r\n`;
+  const head = `--${boundary}\r\nContent-Disposition: form-data; name="image"; filename="${filename}"\r\nContent-Type: image/jpeg\r\n\r\n`;
   const tail = `\r\n--${boundary}--\r\n`;
 
   const body = Buffer.concat([Buffer.from(head), buffer, Buffer.from(tail)]);
+  const basicAuth = Buffer.from(apiKey).toString("base64");
 
-  const res = await fetch("https://tmpfiles.org/api/v1/upload", {
+  const res = await fetch("https://api.d-id.com/images", {
     method: "POST",
     headers: {
+      Authorization: `Basic ${basicAuth}`,
       "Content-Type": `multipart/form-data; boundary=${boundary}`,
     },
     body,
   });
 
-  if (!res.ok) return null;
-  const json = await res.json();
-  if (json?.status === "success" && json?.data?.url) {
-    // tmpfiles.org returns e.g. "https://tmpfiles.org/12345/file.jpg"
-    // Direct link is "https://tmpfiles.org/dl/12345/file.jpg"
-    return json.data.url.replace("tmpfiles.org/", "tmpfiles.org/dl/");
+  const resText = await res.text();
+  if (!res.ok) {
+    throw new Error(`D-ID image upload API error ${res.status}: ${resText}`);
   }
 
-  return null;
+  const json = JSON.parse(resText);
+  if (!json.url) {
+    throw new Error("D-ID image upload response missing url field");
+  }
+
+  return json.url;
 }
