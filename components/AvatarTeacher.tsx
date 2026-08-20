@@ -12,6 +12,10 @@ interface Props {
   currentWord?: string;
 }
 
+/**
+  Renders the chosen photo/video avatar directly in a clean, prominent portrait frame.
+  The cartoon SVG body has been removed as requested, placing full focus on the chosen teacher photo/video.
+ */
 export default function AvatarTeacher({ faceVideoUrl, photoDataUrl, gesture, isSpeaking, currentWord }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
 
@@ -22,72 +26,44 @@ export default function AvatarTeacher({ faceVideoUrl, photoDataUrl, gesture, isS
   }, [faceVideoUrl]);
 
   return (
-    <div className="relative w-80 h-[420px] mx-auto flex flex-col items-center justify-end select-none">
-      {/* SVG Body Layer */}
-      <svg viewBox="0 0 200 260" className="absolute inset-0 w-full h-full pointer-events-none drop-shadow-xl">
-        <defs>
-          <linearGradient id="shirt" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#4f46e5" />
-            <stop offset="100%" stopColor="#3730a3" />
-          </linearGradient>
-        </defs>
-
-        {/* Torso & collar */}
-        <path d="M55 160 Q100 135 145 160 L155 260 L45 260 Z" fill="url(#shirt)" />
-        <path d="M85 150 L100 170 L115 150 Z" fill="#e0e7ff" />
-
-        {/* Left arm */}
-        <g style={armTransform("left", gesture)} className="transition-transform duration-500 ease-out">
-          <path d="M58 165 Q25 180 20 220" stroke="#4338ca" strokeWidth="18" strokeLinecap="round" fill="none" />
-          <circle cx="20" cy="222" r="10" fill="#e8b48c" />
-        </g>
-
-        {/* Right arm */}
-        <g style={armTransform("right", gesture)} className="transition-transform duration-500 ease-out">
-          <path d="M142 165 Q175 180 180 220" stroke="#4338ca" strokeWidth="18" strokeLinecap="round" fill="none" />
-          <circle cx="180" cy="222" r="10" fill="#e8b48c" />
-        </g>
-      </svg>
-
-      {/* Face Circle Layer */}
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 w-44 h-44 rounded-full overflow-hidden border-4 border-indigo-500 shadow-2xl bg-slate-800 ring-4 ring-indigo-500/20">
+    <div className="relative w-full max-w-sm h-80 mx-auto flex flex-col items-center justify-center select-none">
+      {/* Clean Portrait Avatar Frame */}
+      <div className="relative w-64 h-64 rounded-2xl overflow-hidden border-4 border-indigo-500/80 shadow-2xl bg-slate-950 ring-4 ring-indigo-500/20 transition-all duration-300">
         {faceVideoUrl ? (
-          <video ref={videoRef} src={faceVideoUrl} className="w-full h-full object-cover" playsInline muted={false} autoPlay />
+          <video
+            ref={videoRef}
+            src={faceVideoUrl}
+            className="w-full h-full object-cover"
+            playsInline
+            muted={false}
+            autoPlay
+          />
         ) : photoDataUrl ? (
           <LivingPhotoCanvas photoDataUrl={photoDataUrl} isSpeaking={isSpeaking} currentWord={currentWord} />
         ) : (
-          <div className="w-full h-full flex flex-col items-center justify-center bg-slate-800 text-slate-400 text-xs">
-            <span>No Photo Chosen</span>
+          <div className="w-full h-full flex flex-col items-center justify-center bg-slate-900 text-slate-400 p-4 text-center">
+            <span className="text-3xl mb-2">📷</span>
+            <span className="text-xs font-medium">No Photo Selected</span>
+          </div>
+        )}
+
+        {/* Live Speaking Badge */}
+        {isSpeaking && (
+          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-indigo-600/90 text-white text-xs px-3.5 py-1 rounded-full shadow-lg backdrop-blur flex items-center gap-2 border border-indigo-400/40 animate-pulse">
+            <span className="w-2 h-2 rounded-full bg-emerald-400" />
+            <span>Teaching Class Live</span>
           </div>
         )}
       </div>
 
-      {/* Speaking Indicator */}
-      {isSpeaking && (
-        <div className="absolute top-44 left-1/2 -translate-x-1/2 bg-indigo-600/90 text-white text-xs px-3 py-1 rounded-full shadow-lg backdrop-blur flex items-center gap-1.5 animate-pulse">
-          <span className="w-2 h-2 rounded-full bg-emerald-400" />
-          Teaching Class Live...
+      {/* Gesture Badge Indicator */}
+      {gesture && gesture !== "idle" && (
+        <div className="mt-3 text-xs text-indigo-300 font-mono bg-indigo-950/60 px-3 py-1 rounded-md border border-indigo-800/40">
+          Gesture: {gesture.replace("_", " ")}
         </div>
       )}
     </div>
   );
-}
-
-function armTransform(side: "left" | "right", gesture: Gesture): React.CSSProperties {
-  const active =
-    (gesture === "point_left" && side === "left") ||
-    (gesture === "point_right" && side === "right") ||
-    gesture === "open_palms";
-
-  if (!active) {
-    return { transform: "rotate(0deg)", transformOrigin: side === "left" ? "58px 165px" : "142px 165px" };
-  }
-
-  const angle = gesture === "open_palms" ? (side === "left" ? -25 : 25) : side === "left" ? -55 : 55;
-  return {
-    transform: `rotate(${angle}deg)`,
-    transformOrigin: side === "left" ? "58px 165px" : "142px 165px",
-  };
 }
 
 function LivingPhotoCanvas({ photoDataUrl, isSpeaking, currentWord }: { photoDataUrl: string; isSpeaking: boolean; currentWord?: string }) {
@@ -123,8 +99,8 @@ function LivingPhotoCanvas({ photoDataUrl, isSpeaking, currentWord }: { photoDat
     let frameCount = 0;
 
     img.onload = () => {
-      canvas.width = img.naturalWidth || 300;
-      canvas.height = img.naturalHeight || 300;
+      canvas.width = img.naturalWidth || 400;
+      canvas.height = img.naturalHeight || 400;
 
       const render = () => {
         frameCount++;
@@ -180,5 +156,5 @@ function LivingPhotoCanvas({ photoDataUrl, isSpeaking, currentWord }: { photoDat
     };
   }, [photoDataUrl, isSpeaking, currentWord, rig]);
 
-  return <canvas ref={canvasRef} className="w-full h-full object-cover rounded-full" />;
+  return <canvas ref={canvasRef} className="w-full h-full object-cover" />;
 }
