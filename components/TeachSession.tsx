@@ -28,8 +28,7 @@ export default function TeachSession({ script, faceVideoUrl, photoDataUrl, onRes
     return script.steps.slice(0, idx >= 0 ? idx + 1 : 1);
   }, [script.steps, currentStepId]);
 
-  // Speech synthesis for free fallback mode
-  useEffect(() => {
+  function speakCurrentStep() {
     if (faceVideoUrl) return;
     if (!currentStep) return;
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
@@ -59,6 +58,11 @@ export default function TeachSession({ script, faceVideoUrl, photoDataUrl, onRes
     };
 
     window.speechSynthesis.speak(utterance);
+  }
+
+  // Speech synthesis for free fallback mode
+  useEffect(() => {
+    speakCurrentStep();
 
     return () => {
       if (typeof window !== "undefined" && "speechSynthesis" in window) {
@@ -112,7 +116,7 @@ export default function TeachSession({ script, faceVideoUrl, photoDataUrl, onRes
           <h1 className="text-xl font-bold text-white flex items-center gap-2">
             <span>📚</span> {script.topic}
           </h1>
-          <p className="text-xs text-slate-400">Target Grade: {script.grade} • Step {currentStepId} of {script.steps.length}</p>
+          <p className="text-xs text-slate-400">Target Grade: {script.grade} • Live Step {currentStepId} of {script.steps.length}</p>
         </div>
         {onReset && (
           <button
@@ -136,11 +140,20 @@ export default function TeachSession({ script, faceVideoUrl, photoDataUrl, onRes
             currentWord={currentWord}
           />
 
-          <div className="w-full bg-slate-900/90 p-4 rounded-xl border border-slate-800 text-center shadow-inner">
-            <p className="text-xs font-mono text-indigo-400 mb-1">Prof. Sharma Says:</p>
+          <div className="w-full bg-slate-900/90 p-4 rounded-xl border border-slate-800 text-center shadow-inner relative">
+            <p className="text-xs font-mono text-indigo-400 mb-1">Prof. Sharma Speaking Live:</p>
             <p className="text-sm text-slate-200 leading-relaxed font-medium min-h-[60px]">
               &ldquo;{currentStep?.spokenText}&rdquo;
             </p>
+            {!faceVideoUrl && (
+              <button
+                type="button"
+                onClick={speakCurrentStep}
+                className="mt-2 text-xs text-indigo-400 hover:text-indigo-300 underline font-medium"
+              >
+                🔊 Re-speak this step
+              </button>
+            )}
           </div>
 
           <div className="w-full flex items-center justify-between gap-2 pt-2">

@@ -52,12 +52,12 @@ export default function AvatarTeacher({ faceVideoUrl, photoDataUrl, gesture, isS
       {/* Face Circle Layer */}
       <div className="absolute top-4 left-1/2 -translate-x-1/2 w-44 h-44 rounded-full overflow-hidden border-4 border-indigo-500 shadow-2xl bg-slate-800 ring-4 ring-indigo-500/20">
         {faceVideoUrl ? (
-          <video ref={videoRef} src={faceVideoUrl} className="w-full h-full object-cover" playsInline muted={false} />
+          <video ref={videoRef} src={faceVideoUrl} className="w-full h-full object-cover" playsInline muted={false} autoPlay />
         ) : photoDataUrl ? (
           <LivingPhotoCanvas photoDataUrl={photoDataUrl} isSpeaking={isSpeaking} currentWord={currentWord} />
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center bg-slate-800 text-slate-400 text-xs">
-            <span>No Photo</span>
+            <span>No Photo Chosen</span>
           </div>
         )}
       </div>
@@ -66,7 +66,7 @@ export default function AvatarTeacher({ faceVideoUrl, photoDataUrl, gesture, isS
       {isSpeaking && (
         <div className="absolute top-44 left-1/2 -translate-x-1/2 bg-indigo-600/90 text-white text-xs px-3 py-1 rounded-full shadow-lg backdrop-blur flex items-center gap-1.5 animate-pulse">
           <span className="w-2 h-2 rounded-full bg-emerald-400" />
-          Speaking...
+          Teaching Class Live...
         </div>
       )}
     </div>
@@ -97,6 +97,7 @@ function LivingPhotoCanvas({ photoDataUrl, isSpeaking, currentWord }: { photoDat
   useEffect(() => {
     let cancelled = false;
     const img = new Image();
+    img.crossOrigin = "anonymous";
     img.src = photoDataUrl;
     img.onload = async () => {
       if (cancelled) return;
@@ -115,6 +116,7 @@ function LivingPhotoCanvas({ photoDataUrl, isSpeaking, currentWord }: { photoDat
     if (!ctx) return;
 
     const img = new Image();
+    img.crossOrigin = "anonymous";
     img.src = photoDataUrl;
 
     let rafId: number;
@@ -132,19 +134,39 @@ function LivingPhotoCanvas({ photoDataUrl, isSpeaking, currentWord }: { photoDat
           if (currentWord) {
             mouthOpen = estimateMouthOpenFromWord(currentWord);
           } else {
-            // Oscillate mouth height for simulated speech if word stream is unavailable
-            mouthOpen = 0.2 + 0.4 * Math.abs(Math.sin(frameCount * 0.2));
+            mouthOpen = 0.25 + 0.45 * Math.abs(Math.sin(frameCount * 0.25));
           }
         }
 
-        const isBlinking = frameCount % 120 > 112; // blink every ~2 seconds
+        const isBlinking = frameCount % 130 > 122;
 
         if (rig) {
           drawTalkingFrame(ctx, img, rig, mouthOpen, isBlinking);
         } else {
-          // Fallback simple draw if landmark rig is unavailable
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          // Dynamic lip-sync canvas warp on lower mouth region of chosen photo
+          const w = canvas.width;
+          const h = canvas.height;
+          ctx.clearRect(0, 0, w, h);
+          ctx.drawImage(img, 0, 0, w, h);
+
+          if (mouthOpen > 0.05) {
+            const mouthY = h * 0.58;
+            const mouthH = h * 0.28;
+            const scaleY = 1 + mouthOpen * 0.35;
+            ctx.save();
+            ctx.translate(w / 2, mouthY + mouthH / 2);
+            ctx.scale(1, scaleY);
+            ctx.translate(-w / 2, -(mouthY + mouthH / 2));
+            ctx.drawImage(img, 0, mouthY, w, mouthH, 0, mouthY, w, mouthH);
+            ctx.restore();
+          }
+
+          if (isBlinking) {
+            const eyeY = h * 0.35;
+            const eyeH = h * 0.08;
+            ctx.fillStyle = "rgba(40, 30, 20, 0.4)";
+            ctx.fillRect(w * 0.2, eyeY, w * 0.6, eyeH);
+          }
         }
 
         rafId = requestAnimationFrame(render);
